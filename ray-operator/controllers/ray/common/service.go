@@ -127,7 +127,7 @@ func BuildServiceForHeadPod(ctx context.Context, cluster rayv1.RayCluster, label
 	if !getEnableRayHeadClusterIPService() && (defaultType == "" || defaultType == corev1.ServiceTypeClusterIP) {
 		// Make the head service headless by default, because a RayCluster should have at most one head Pod.
 		headService.Spec.ClusterIP = corev1.ClusterIPNone
-		headService.Spec.PublishNotReadyAddresses = true // We don't need to hide the Head address if its health checks failed.
+		headService.Spec.PublishNotReadyAddresses = false
 	}
 
 	// This change ensures that reconciliation in rayservice_controller will not update the Service spec due to change in ports order

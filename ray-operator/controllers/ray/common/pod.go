@@ -912,6 +912,9 @@ func setContainerEnvVars(pod *corev1.Pod, rayNodeType rayv1.RayNodeType, fqdnRay
 	// from within the cluster.
 	if !utils.EnvVarExists(utils.RAY_ADDRESS, container.Env) {
 		rayAddress := fmt.Sprintf("%s:%s", ip, headPort)
+		if rayNodeType == rayv1.HeadNode {
+			rayAddress = fmt.Sprintf("127.0.0.1:%s", headPort)
+		}
 		addressEnv := corev1.EnvVar{Name: utils.RAY_ADDRESS, Value: rayAddress}
 		container.Env = append(container.Env, addressEnv)
 	}

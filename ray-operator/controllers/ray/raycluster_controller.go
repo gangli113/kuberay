@@ -707,6 +707,8 @@ func (r *RayClusterReconciler) reconcilePods(ctx context.Context, instance *rayv
 		// If we reach here, we have exactly 1 valid head pod.
 		// Now check if we need a second one for shadow head.
 		if instance.Spec.HeadGroupSpec.EnableShadowHead != nil && *instance.Spec.HeadGroupSpec.EnableShadowHead {
+			logger.Info("Wait for 2 minutes before creating the shadow pod")
+			time.Sleep(2 * time.Minute)
 			logger.Info("reconcilePods: Found 1 head Pod and enableShadowHead is true; creating standby head Pod for the RayCluster.")
 			if err := r.createHeadPod(ctx, *instance, clusterHash); err != nil {
 				return errstd.Join(utils.ErrFailedCreateHeadPod, err)
