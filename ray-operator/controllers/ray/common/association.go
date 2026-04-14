@@ -190,6 +190,10 @@ func GetRayClusterHeadPod(ctx context.Context, reader client.Reader, instance *r
 	}
 	if len(runtimePods.Items) > 1 {
 		logger.Info("Found multiple head pods", "count", len(runtimePods.Items), "filter labels", filterLabels)
+		if instance.Spec.HeadGroupSpec.EnableShadowHead != nil && *instance.Spec.HeadGroupSpec.EnableShadowHead {
+			logger.Info("Shadow head enabled, tolerating multiple head pods. Returning the first one.")
+			return &runtimePods.Items[0], nil
+		}
 		return nil, fmt.Errorf("found multiple heads. filter labels %v", filterLabels)
 	}
 	return &runtimePods.Items[0], nil

@@ -151,6 +151,9 @@ type HeadGroupSpec struct {
 	// ServiceType is Kubernetes service type of the head service. it will be used by the workers to connect to the head pod
 	// +optional
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// EnableShadowHead indicates whether to enable shadow head mode (active-passive standby).
+	// +optional
+	EnableShadowHead *bool `json:"enableShadowHead,omitempty"`
 }
 
 // WorkerGroupSpec are the specs for the worker pods

@@ -262,6 +262,7 @@ _Appears in:_
 | `labels` _object (keys:string, values:string)_ | Labels specifies the Ray node labels for the head group.<br />These labels will also be added to the Pods of this head group and override the `--labels`<br />argument passed to `rayStartParams`. |  |  |
 | `rayStartParams` _object (keys:string, values:string)_ | RayStartParams are the params of the start command: node-manager-port, object-store-memory, ... |  |  |
 | `serviceType` _[ServiceType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#servicetype-v1-core)_ | ServiceType is Kubernetes service type of the head service. it will be used by the workers to connect to the head pod |  |  |
+| `enableShadowHead` _boolean_ | EnableShadowHead indicates whether to enable shadow head mode (active-passive standby). |  |  |
 
 
 

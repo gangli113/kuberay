@@ -3890,3 +3890,40 @@ func TestReconcilePodsWithAuthTokenSecretName(t *testing.T) {
 		assert.True(t, authTokenEnvFound, "Auth token env var with provided secret name not found")
 	}
 }
+
+func TestReconcile_ShadowHead_CreateStandby(t *testing.T) {
+	setupTest(t)
+
+	// Enable shadow head mode.
+	testRayCluster.Spec.HeadGroupSpec.EnableShadowHead = ptr.To(true)
+
+	// testPods contains 1 head pod by default (from setupTest).
+	fakeClient := clientFake.NewClientBuilder().WithRuntimeObjects(testPods...).Build()
+	ctx := context.Background()
+
+	testRayClusterReconciler := &RayClusterReconciler{
+		Client:                     fakeClient,
+		Recorder:                   &record.FakeRecorder{},
+		Scheme:                     scheme.Scheme,
+		rayClusterScaleExpectation: expectations.NewRayClusterScaleExpectation(fakeClient),
+	}
+
+	// First reconcile should create the second head pod.
+	err := testRayClusterReconciler.reconcilePods(ctx, testRayCluster)
+	require.NoError(t, err, "Fail to reconcile Pods")
+
+	podList := corev1.PodList{}
+	err = fakeClient.List(ctx, &podList, client.InNamespace(namespaceStr))
+	require.NoError(t, err, "Fail to get pod list")
+
+	// We started with 1 head pod and 5 worker pods (from setupTest).
+	// So we should have 2 head pods and 5 worker pods now!
+	// Let's count head pods!
+	headPodCount := 0
+	for _, pod := range podList.Items {
+		if val, ok := pod.Labels[utils.RayNodeTypeLabelKey]; ok && val == string(rayv1.HeadNode) {
+			headPodCount++
+		}
+	}
+	assert.Equal(t, 2, headPodCount, "Expected 2 head pods when enableShadowHead is true")
+}

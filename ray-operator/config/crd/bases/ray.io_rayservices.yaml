@@ -487,6 +487,8 @@ spec:
                     properties:
                       enableIngress:
                         type: boolean
+                      enableShadowHead:
+                        type: boolean
                       headService:
                         properties:
                           apiVersion:

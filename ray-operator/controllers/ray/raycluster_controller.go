@@ -711,6 +711,16 @@ func (r *RayClusterReconciler) reconcilePods(ctx context.Context, instance *rayv
 				headPod.Namespace, headPod.Name, headPod.Status.Phase, headPod.Spec.RestartPolicy, getRayContainerStateTerminated(headPod))
 			return errstd.New(reason)
 		}
+		// If we reach here, we have exactly 1 valid head pod.
+		// Now check if we need a second one for shadow head.
+		if instance.Spec.HeadGroupSpec.EnableShadowHead != nil && *instance.Spec.HeadGroupSpec.EnableShadowHead {
+			logger.Info("Wait for 2 minutes before creating the shadow pod")
+			time.Sleep(2 * time.Minute)
+			logger.Info("reconcilePods: Found 1 head Pod and enableShadowHead is true; creating standby head Pod for the RayCluster.")
+			if err := r.createHeadPod(ctx, *instance, clusterHash); err != nil {
+				return errstd.Join(utils.ErrFailedCreateHeadPod, err)
+			}
+		}
 	} else if len(headPods.Items) == 0 {
 		if meta.IsStatusConditionTrue(instance.Status.Conditions, string(rayv1.RayClusterProvisioned)) &&
 			shouldSkipHeadPodRestart(instance) {
@@ -736,16 +746,27 @@ func (r *RayClusterReconciler) reconcilePods(ctx context.Context, instance *rayv
 		if err := r.createHeadPod(ctx, *instance, clusterHash); err != nil {
 			return errstd.Join(utils.ErrFailedCreateHeadPod, err)
 		}
-	} else if len(headPods.Items) > 1 { // This should never happen. This protects against the case that users manually create headpod.
-		headPodNames := make([]string, len(headPods.Items))
-		for i, pod := range headPods.Items {
-			headPodNames[i] = pod.Name
+	} else if len(headPods.Items) > 1 {
+		enableShadowHeadVal := false
+		if instance.Spec.HeadGroupSpec.EnableShadowHead != nil {
+			enableShadowHeadVal = *instance.Spec.HeadGroupSpec.EnableShadowHead
 		}
+		if enableShadowHeadVal && len(headPods.Items) == 2 {
+			// This is the desired state for shadow head mode. Do nothing.
+			logger.V(1).Info("reconcilePods: Found 2 head Pods as expected for shadow head mode.")
+		} else {
+			// This should never happen in normal mode, or if more than 2 in shadow mode.
+			headPodNames := make([]string, len(headPods.Items))
+			for i, pod := range headPods.Items {
+				headPodNames[i] = pod.Name
+			}
 
-		logger.Info("Multiple head pods found, it should only exist one head pod. Please delete extra head pods.",
-			"found pods", headPodNames,
-		)
-		return fmt.Errorf("%d head pods found %v. Please delete extra head pods", len(headPods.Items), headPodNames)
+			logger.Info("Unexpected number of head pods found. Please delete extra head pods.",
+				"found pods", headPodNames,
+				"enableShadowHead", enableShadowHeadVal,
+			)
+			return fmt.Errorf("%d head pods found %v. Please delete extra head pods", len(headPods.Items), headPodNames)
+		}
 	}
 
 	// Reconcile worker pods now
@@ -1297,6 +1318,10 @@ func (r *RayClusterReconciler) createService(ctx context.Context, svc *corev1.Se
 	}
 
 	if err := r.Create(ctx, svc); err != nil {
+		if errors.IsAlreadyExists(err) {
+			logger.Info("Service already exists, ignoring error", "name", svc.Name)
+			return nil
+		}
 		r.Recorder.Eventf(instance, corev1.EventTypeWarning, string(utils.FailedToCreateService), "Failed creating service %s/%s, %v", svc.Namespace, svc.Name, err)
 		return err
 	}
